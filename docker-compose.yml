@@ -1,0 +1,15 @@
+jirou_deep:
+  build: .
+  volumes:
+    - "$PWD/model:/app/model:rw"
+    - "$PWD/test_images:/app/test_images:rw"
+  environment:
+    -  CONSUMER_KEY
+    -  CONSUMER_SECRET
+    -  ACCESS_TOKEN
+    -  ACCESS_SECRET
+    -  BOT_NAME
+    -  MODEL_PREFIX
+    -  MODEL_EPOCH
+    -  IMAGE_SIZE
+    -  LABELS_TXT
