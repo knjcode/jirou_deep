@@ -1,10 +1,5 @@
 FROM knjcode/mxnet-finetuner:cpu
 
-RUN cd /mxnet \
-  && cd python \
-  && pip3 install --upgrade pip \
-  && pip3 install -e .
-
 WORKDIR /app
 
 COPY requirements.txt .

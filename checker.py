@@ -17,7 +17,9 @@ import hashlib
 
 model_prefix = os.environ['MODEL_PREFIX']
 model_epoch  = int(os.environ['MODEL_EPOCH'])
+center_crop  = int(os.environ['CENTER_CROP'])
 image_size   = int(os.environ['IMAGE_SIZE'])
+rgb_mean     = [float(i) for i in os.environ['RGB_MEAN'].split(',')]
 labels_txt   = os.environ['LABELS_TXT']
 
 Batch = namedtuple('Batch', ['data'])
@@ -40,9 +42,11 @@ def get_image(url):
     img = cv2.cvtColor(cv2.imread(fname), cv2.COLOR_BGR2RGB)
     if img is None:
          return None
+    if center_crop:
+        img = crop_center(img)
     img = cv2.resize(img, (image_size, image_size))
-    # img = crop_center(img)
-    # img = resize_keep_aspect(img, image_size, image_size, (127,127,127))
+    img = img.astype(np.float32)
+    img -= rgb_mean
     img = np.swapaxes(img, 0, 2)
     img = np.swapaxes(img, 1, 2)
     img = img[np.newaxis, :]
@@ -50,14 +54,10 @@ def get_image(url):
 
 
 def crop_center(img):
-    y,x,c = img.shape
-    if x < y:
-        cropsize = x
-    else:
-        cropsize = y
-    startx = x//2-(cropsize//2)
-    starty = y//2-(cropsize//2)
-    return img[starty:starty+cropsize,startx:startx+cropsize]
+    short_edge = min(img.shape[:2])
+    yy = int((img.shape[0] - short_edge) / 2)
+    xx = int((img.shape[1] - short_edge) / 2)
+    return img[yy : yy + short_edge, xx : xx + short_edge]
 
 
 def create_blank(height, width, rgb_color):

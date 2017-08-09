@@ -1,5 +1,7 @@
 jirou_deep:
   build: .
+  container_name: "jirou_deep"
+  restart: always
   volumes:
     - "$PWD/model:/app/model:rw"
     - "$PWD/test_images:/app/test_images:rw"
@@ -11,5 +13,7 @@ jirou_deep:
     -  BOT_NAME
     -  MODEL_PREFIX
     -  MODEL_EPOCH
+    -  CENTER_CROP
     -  IMAGE_SIZE
+    -  RGB_MEAN
     -  LABELS_TXT
