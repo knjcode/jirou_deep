@@ -11,6 +11,7 @@ jirou_deep:
     -  ACCESS_TOKEN
     -  ACCESS_SECRET
     -  BOT_NAME
+    -  INTERVAL_IN_SECONDS
     -  MODEL_PREFIX
     -  MODEL_EPOCH
     -  CENTER_CROP
