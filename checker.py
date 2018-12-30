@@ -1,4 +1,4 @@
-#/usr/bin/env python
+#!/usr/bin/env python
 # coding: utf-8
 
 import os
@@ -10,10 +10,7 @@ import heapq
 from collections import namedtuple
 import time
 from datetime import datetime
-import json
 import math
-import base64
-import hashlib
 
 model_prefix = os.environ['MODEL_PREFIX']
 model_epoch  = int(os.environ['MODEL_EPOCH'])
@@ -26,7 +23,7 @@ Batch = namedtuple('Batch', ['data'])
 sym, arg_params, aux_params = mx.model.load_checkpoint('model/'+model_prefix, model_epoch)
 mod = mx.mod.Module(symbol=sym, context=mx.cpu(), label_names=None)
 mod.bind(for_training=False,
-         data_shapes=[('data', (1,3,image_size,image_size))])
+         data_shapes=[('data', (1, 3, image_size, image_size))])
 mod.set_params(arg_params, aux_params, allow_missing=True)
 
 labels = []
@@ -41,7 +38,7 @@ def get_image(url):
     fname = mx.test_utils.download(url, fname=filename, dirname='test_images')
     img = cv2.cvtColor(cv2.imread(fname), cv2.COLOR_BGR2RGB)
     if img is None:
-         return None
+        return None
     if center_crop:
         img = crop_center(img)
     img = cv2.resize(img, (image_size, image_size))
@@ -57,7 +54,7 @@ def crop_center(img):
     short_edge = min(img.shape[:2])
     yy = int((img.shape[0] - short_edge) / 2)
     xx = int((img.shape[1] - short_edge) / 2)
-    return img[yy : yy + short_edge, xx : xx + short_edge]
+    return img[yy:yy + short_edge, xx:xx + short_edge]
 
 
 def create_blank(height, width, rgb_color):

@@ -6,15 +6,21 @@ jirou_deep:
     - "$PWD/model:/app/model:rw"
     - "$PWD/test_images:/app/test_images:rw"
   environment:
-    -  CONSUMER_KEY
-    -  CONSUMER_SECRET
-    -  ACCESS_TOKEN
-    -  ACCESS_SECRET
-    -  BOT_NAME
-    -  INTERVAL_IN_SECONDS
-    -  MODEL_PREFIX
-    -  MODEL_EPOCH
-    -  CENTER_CROP
-    -  IMAGE_SIZE
-    -  RGB_MEAN
-    -  LABELS_TXT
+    - CONSUMER_KEY
+    - CONSUMER_SECRET
+    - ACCESS_TOKEN
+    - ACCESS_SECRET
+    - BOT_NAME
+    - INTERVAL_IN_SECONDS
+    - MODEL_PREFIX
+    - MODEL_EPOCH
+    - CENTER_CROP
+    - IMAGE_SIZE
+    - RGB_MEAN
+    - LABELS_TXT
+    - MODEL
+    - SCALE_SIZE
+    - SCALE_SIZE_TTA
+    - INPUT_SIZE
+    - INPUT_SIZE_TTA
+    - USE_CUDA

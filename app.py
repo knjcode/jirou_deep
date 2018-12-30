@@ -2,12 +2,26 @@
 # coding: utf-8
 
 import os
-import re
-import tweepy
-import checker
+import time
 
 import schedule
-import time
+import tweepy
+
+from checker_pytorch import PytorchClassifier
+
+model_file     = os.environ['MODEL']
+scale_size     = int(os.environ.get('SCALE_SIZE', 224))
+scale_size_tta = int(os.environ.get('SCALE_SIZE_TTA', 256))
+input_size     = int(os.environ.get('INPUT_SIZE', 224))
+input_size_tta = int(os.environ.get('INPUT_SIZE_TTA', 224))
+topk           = int(os.environ.get('TOPK', 3))
+use_cuda       = int(os.environ.get('USE_CUDA', 0))
+
+# load model
+model = PytorchClassifier(model_file,
+                          scale_size=scale_size, scale_size_tta=scale_size_tta,
+                          input_size=input_size, input_size_tta=input_size_tta,
+                          topk=topk, use_cuda=use_cuda)
 
 consumer_key    = os.environ['CONSUMER_KEY']
 consumer_secret = os.environ['CONSUMER_SECRET']
@@ -19,10 +33,12 @@ auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
 auth.set_access_token(access_token, access_secret)
 api = tweepy.API(auth, wait_on_rate_limit=True)
 
+
 def on_status(status):
     # reply
     if status.in_reply_to_screen_name == bot_name:
-        reply_url = "https://twitter.com/%s/status/%s" % (status.author.screen_name, status.id_str)
+        reply_url = "https://twitter.com/%s/status/%s" % \
+            (status.author.screen_name, status.id_str)
         try:
             print("reply from %s %s" % (status.author.screen_name, reply_url))
             print(status.text)
@@ -32,7 +48,7 @@ def on_status(status):
         try:
             media_url_https = status.entities['media'][0]['media_url_https']
             print("image found: %s" % media_url_https)
-            results = checker.predict(media_url_https)
+            results = model.predict_url(media_url_https, use_tta=False)
             print(results)
 
             top = results[0]['term']
