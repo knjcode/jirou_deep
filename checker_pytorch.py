@@ -13,7 +13,6 @@ from datetime import datetime
 import torch
 import torchvision.transforms as transforms
 
-from torch.autograd import Variable
 from cnn_finetune import make_model
 from PIL import Image
 from torchvision.transforms.functional import center_crop, resize
@@ -94,8 +93,11 @@ class PytorchClassifier:
         return model, class_names, args.rgb_mean, args.rgb_std
 
     def get_preprocess(self, scale_size, input_size, rgb_mean, rgb_std, use_tta):
-        rgb_mean = [float(mean) for mean in rgb_mean.split(',')]
-        rgb_std = [float(std) for std in rgb_std.split(',')]
+        try:
+            rgb_mean = [float(mean) for mean in rgb_mean.split(',')]
+            rgb_std = [float(std) for std in rgb_std.split(',')]
+        except AttributeError:
+            pass
         if use_tta:
             preprocess = transforms.Compose([
                 transforms.Resize(scale_size),
@@ -171,8 +173,7 @@ class PytorchClassifier:
         else:
             img_tensor = self.preprocess(img_pil)
         img_tensor.unsqueeze_(0)
-        img_variable = Variable(img_tensor)
-        return img_variable.to(self.device)
+        return img_tensor.to(self.device)
 
     def get_image_url(self, url, use_tta=False):
         now = datetime.now()
@@ -182,12 +183,13 @@ class PytorchClassifier:
         return self.get_image_file(fname, use_tta=use_tta)
 
     def predict(self, img_variable, use_tta=False):
-        if use_tta:
-            bs, ncrops, c, h, w = img_variable.size()
-            output = self.model(img_variable.view(-1, c, h, w))
-            output = output.view(bs, ncrops, -1).mean(1)
-        else:
-            output = self.model(img_variable)
+        with torch.no_grad():
+            if use_tta:
+                bs, ncrops, c, h, w = img_variable.size()
+                output = self.model(img_variable.view(-1, c, h, w))
+                output = output.view(bs, ncrops, -1).mean(1)
+            else:
+                output = self.model(img_variable)
         probs, labels = output.topk(self.topk)
 
         results = []
