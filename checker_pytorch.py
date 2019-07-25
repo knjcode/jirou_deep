@@ -14,11 +14,12 @@ import torch
 import torchvision.transforms as transforms
 
 from cnn_finetune import make_model
+from efficientnet_pytorch import EfficientNet
 from PIL import Image
 from torchvision.transforms.functional import center_crop, resize
 
 
-def custom_seven_crop(img, size):
+def custom_seven_crop(img, size, interpolation):
     if isinstance(size, numbers.Number):
         size = (int(size), int(size))
     else:
@@ -37,14 +38,16 @@ def custom_seven_crop(img, size):
     bl = img.crop((0, h - crop_h, crop_w, h))
     br = img.crop((w - crop_w, h - crop_h, w, h))
     center = center_crop(img, (crop_h, crop_w))
-    semi_full = resize(img.crop((shift_w, shift_h, w - shift_w, h - shift_h)), (crop_h, crop_w))
-    full = resize(img, (crop_h, crop_w))
+    semi_full = resize(img.crop((shift_w, shift_h, w - shift_w, h - shift_h)), (crop_h, crop_w),
+        interpolation=interpolation)
+    full = resize(img, (crop_h, crop_w), interpolation=interpolation)
     return (tl, tr, bl, br, center, semi_full, full)
 
 
 class CustomSevenCrop(object):
-    def __init__(self, size):
+    def __init__(self, size, interpolation):
         self.size = size
+        self.interpolation = interpolation
         if isinstance(size, numbers.Number):
             self.size = (int(size), int(size))
         else:
@@ -52,10 +55,11 @@ class CustomSevenCrop(object):
             self.size = size
 
     def __call__(self, img):
-        return custom_seven_crop(img, self.size)
+        return custom_seven_crop(img, self.size, self.interpolation)
 
     def __repr__(self):
-        return self.__class__.__name__ + '(size={0})'.format(self.size)
+        return self.__class__.__name__ + '(size={0}, interpolation={1})'.\
+            format(self.size, self.interpolation)
 
 
 class PytorchClassifier:
@@ -69,39 +73,55 @@ class PytorchClassifier:
         self.topk = topk
         self.use_cuda = use_cuda
         self.device = torch.device("cuda" if use_cuda and torch.cuda.is_available() else "cpu")
-        self.model, self.class_names, self.rgb_mean, self.rgb_std = self.load_model(self.model_file)
+        self.model, self.class_names, self.rgb_mean, self.rgb_std, self.interpolation = self.load_model(self.model_file)
         print("=> load model:", self.model_file)
-        print("=> rgb_mean: {}  rgb_std: {}".format(self.rgb_mean, self.rgb_std))
+        print("=> rgb_mean: {}  rgb_std: {}  interpolation: {}".format(self.rgb_mean, self.rgb_std, self.interpolation))
         print("=> scale_size: {}  input_size: {}".format(self.scale_size, self.input_size))
         print("=> scale_size_tta: {}  input_size_tta: {}".format(self.scale_size_tta, self.input_size_tta))
         print("=> topk:", self.topk)
         print("=> use CUDA:", self.use_cuda and torch.cuda.is_available())
-        self.preprocess = self.get_preprocess(self.scale_size, self.input_size, self.rgb_mean, self.rgb_std, False)
-        self.preprocess_tta = self.get_preprocess(self.scale_size_tta, self.input_size_tta, self.rgb_mean, self.rgb_std, True)
+        self.preprocess = self.get_preprocess(self.scale_size, self.input_size, self.rgb_mean, self.rgb_std, self.interpolation, False)
+        self.preprocess_tta = self.get_preprocess(self.scale_size_tta, self.input_size_tta, self.rgb_mean, self.rgb_std, self.interpolation, True)
         self.softmax = torch.nn.Softmax(dim=1)
 
     def load_model(self, model_file):
         checkpoint = torch.load(model_file, map_location=self.device)
         args = checkpoint['args']
+
+        try:
+            rgb_mean = [float(mean) for mean in args.rgb_mean.split(',')]
+            rgb_std = [float(std) for std in args.rgb_std.split(',')]
+        except AttributeError:
+            rgb_mean = args.rgb_mean
+            rgb_std = args.rgb_std
+        try:
+            interpolation = args.interpolation
+        except AttributeError:
+            interpolation = 'BILINEAR'
+
         model_arch = checkpoint['arch']
         num_classes = checkpoint.get('num_classes', 0)
-        model = make_model(model_arch, num_classes=num_classes, pretrained=False)
+        if model_arch.startswith('efficientnet'):
+            model = EfficientNet.from_name(model_arch)
+            num_features = model._fc.in_features
+            model._fc = torch.nn.Linear(num_features, num_classes)
+        else:
+            model = make_model(model_arch,
+                               num_classes=num_classes,
+                               pretrained=False)
         model.load_state_dict(checkpoint['model'])
         class_names = checkpoint.get('class_names', [])
         model.to(self.device)
         model.eval()
-        return model, class_names, args.rgb_mean, args.rgb_std
+        return model, class_names, rgb_mean, rgb_std, interpolation
 
-    def get_preprocess(self, scale_size, input_size, rgb_mean, rgb_std, use_tta):
-        try:
-            rgb_mean = [float(mean) for mean in rgb_mean.split(',')]
-            rgb_std = [float(std) for std in rgb_std.split(',')]
-        except AttributeError:
-            pass
+    def get_preprocess(self, scale_size, input_size, rgb_mean, rgb_std, interpolation, use_tta):
+        interpolation = getattr(Image, interpolation, 2)
+
         if use_tta:
             preprocess = transforms.Compose([
-                transforms.Resize(scale_size),
-                CustomSevenCrop(input_size),
+                transforms.Resize(scale_size, interpolation=interpolation),
+                CustomSevenCrop(input_size, interpolation),
                 transforms.Lambda(lambda crops: torch.stack(
                     [transforms.ToTensor()(crop) for crop in crops])),
                 transforms.Lambda(lambda crops: torch.stack(
@@ -109,7 +129,7 @@ class PytorchClassifier:
             ])
         else:
             preprocess = transforms.Compose([
-                transforms.Resize(scale_size),
+                transforms.Resize(scale_size, interpolation=interpolation),
                 transforms.CenterCrop(input_size),
                 transforms.ToTensor(),
                 transforms.Normalize(rgb_mean, rgb_std)
