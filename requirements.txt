@@ -7,7 +7,7 @@ idna==2.8
 numpy==1.17.1
 oauthlib==3.1.0
 opencv-python==4.1.0.25
-Pillow==6.1.0
+Pillow==6.2.0
 requests==2.22.0
 requests-oauthlib==1.2.0
 schedule==0.6.0
