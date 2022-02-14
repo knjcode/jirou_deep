@@ -26,6 +26,7 @@ ENV LANG ja_JP.UTF-8
 
 COPY requirements.txt .
 RUN pip3 install -r requirements.txt
+RUN pip3 install timm
 COPY app.py .
 COPY checker_pytorch.py .
 

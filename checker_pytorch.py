@@ -12,6 +12,7 @@ from datetime import datetime
 
 import torch
 import torchvision.transforms as transforms
+import timm
 
 from cnn_finetune import make_model
 from efficientnet_pytorch import EfficientNet
@@ -105,6 +106,10 @@ class PytorchClassifier:
             model = EfficientNet.from_name(model_arch)
             num_features = model._fc.in_features
             model._fc = torch.nn.Linear(num_features, num_classes)
+        elif model_arch.startswith('tf_efficientnet'):
+            model = timm.create_model(model_arch,
+                                      pretrained=False,
+                                      num_classes=num_classes)
         else:
             model = make_model(model_arch,
                                num_classes=num_classes,
