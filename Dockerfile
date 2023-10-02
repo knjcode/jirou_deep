@@ -24,6 +24,8 @@ WORKDIR /app
 RUN locale-gen ja_JP.UTF-8
 ENV LANG ja_JP.UTF-8
 
+RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
 COPY requirements.txt .
 RUN pip3 install -r requirements.txt
 RUN pip3 install timm
